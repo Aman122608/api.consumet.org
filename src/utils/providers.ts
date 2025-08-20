@@ -1,64 +1,43 @@
-import { PROVIDERS_LIST } from '@consumet/extensions';
-import { FastifyRequest, FastifyReply, FastifyInstance, RegisterOptions } from 'fastify';
+import { PROVIDERS_LIST, ANIME } from '@consumet/extensions';
 
-type ProvidersRequest = FastifyRequest<{
-  Querystring: { type: keyof typeof PROVIDERS_LIST };
-}>;
+// Remove AnimeOwl from all known maps and poison any lingering method
+(function nukeAnimeOwl() {
+  try {
+    const roots: any[] = [PROVIDERS_LIST as any, ANIME as any];
+    for (const root of roots) {
+      if (!root) continue;
 
-// ---- OPTIONAL: hard remove AnimeOwl globally at startup
-// (Safe if PROVIDERS_LIST.ANIME exists; no-op otherwise)
-try {
-  const anyList: any = PROVIDERS_LIST as any;
-  if (anyList?.ANIME?.AnimeOwl) {
-    delete anyList.ANIME.AnimeOwl;
+      // Obvious top-level
+      if (root.AnimeOwl) delete root.AnimeOwl;
+      if (root.ANIME?.AnimeOwl) delete root.ANIME.AnimeOwl;
+
+      // Walk nested containers like PROVIDERS_LIST.ANIME
+      for (const typeKey of Object.keys(root)) {
+        const container = root[typeKey];
+        if (!container || typeof container !== 'object') continue;
+
+        for (const provKey of Object.keys(container)) {
+          const ctor = container[provKey];
+          const name = String(ctor?.name ?? provKey).toLowerCase();
+          if (name.includes('animeowl')) {
+            delete container[provKey];
+          }
+        }
+      }
+    }
+
+    // Poison prototype in case something already captured the ctor
+    const Owl = (ANIME as any)?.AnimeOwl;
+    if (Owl?.prototype) {
+      for (const k of Object.getOwnPropertyNames(Owl.prototype)) {
+        if (typeof Owl.prototype[k] === 'function') {
+          Owl.prototype[k] = async () => {
+            throw new Error('AnimeOwl disabled by server config');
+          };
+        }
+      }
+    }
+  } catch (_) {
+    // ignore
   }
-} catch { /* ignore */ }
-
-// Helper to filter out AnimeOwl constructors by class name
-const isBlocked = (ctor: any) => {
-  const n = (ctor?.name ?? '').toLowerCase();
-  return n === 'animeowl' || n.includes('animeowl');
-};
-
-export default class Providers {
-  public getProviders = async (fastify: FastifyInstance, options: RegisterOptions) => {
-    fastify.get(
-      '/providers',
-      {
-        preValidation: (request, reply, done) => {
-          const { type } = request.query;
-
-          const providerTypes = Object.keys(PROVIDERS_LIST);
-
-          if (type === undefined) {
-            reply.status(400);
-            return done(
-              new Error(
-                'Type must not be empty. Available types: ' + providerTypes.toString(),
-              ),
-            );
-          }
-
-          if (!providerTypes.includes(type)) {
-            reply.status(400);
-            return done(new Error('Type must be either: ' + providerTypes.toString()));
-          }
-
-          done();
-        },
-      },
-      async (request: ProvidersRequest, reply: FastifyReply) => {
-        const { type } = request.query;
-
-        // Get constructors, drop AnimeOwl, sort by class name
-        const providers = (Object.values(PROVIDERS_LIST[type]) as any[])
-          .filter((ctor) => !isBlocked(ctor))
-          .sort((a, b) => String(a?.name).localeCompare(String(b?.name)));
-
-        // NOTE: your original code returned element.toString (a function pointer).
-        // Return readable names instead.
-        reply.status(200).send(providers.map((ctor) => ctor?.name ?? 'Unknown'));
-      },
-    );
-  };
-}
+})();
