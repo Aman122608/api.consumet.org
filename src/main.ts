@@ -5,11 +5,11 @@ import FastifyCors from '@fastify/cors';
 import fs from 'fs';
 
 import books from './routes/books';
-import anime from './routes/anime';
-import manga from './routes/manga';
+import anime from './routes/education';
+import manga from './routes/textbooks';
 import comics from './routes/comics';
 import lightnovels from './routes/light-novels';
-import movies from './routes/movies';
+import movies from './routes/bryantvids';
 import meta from './routes/meta';
 import news from './routes/news';
 import chalk from 'chalk';
