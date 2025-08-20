@@ -1,43 +1,44 @@
-import { PROVIDERS_LIST, ANIME } from '@consumet/extensions';
+import { PROVIDERS_LIST } from '@consumet/extensions';
+import { FastifyRequest, FastifyReply, FastifyInstance, RegisterOptions } from 'fastify';
 
-// Remove AnimeOwl from all known maps and poison any lingering method
-(function nukeAnimeOwl() {
-  try {
-    const roots: any[] = [PROVIDERS_LIST as any, ANIME as any];
-    for (const root of roots) {
-      if (!root) continue;
+type ProvidersRequest = FastifyRequest<{
+  Querystring: { type: keyof typeof PROVIDERS_LIST };
+}>;
 
-      // Obvious top-level
-      if (root.AnimeOwl) delete root.AnimeOwl;
-      if (root.ANIME?.AnimeOwl) delete root.ANIME.AnimeOwl;
+export default class Providers {
+  public getProviders = async (fastify: FastifyInstance, options: RegisterOptions) => {
+    fastify.get(
+      '/providers',
+      {
+        preValidation: (request, reply, done) => {
+          const { type } = request.query;
 
-      // Walk nested containers like PROVIDERS_LIST.ANIME
-      for (const typeKey of Object.keys(root)) {
-        const container = root[typeKey];
-        if (!container || typeof container !== 'object') continue;
+          const providerTypes = Object.keys(PROVIDERS_LIST).map((element) => element);
 
-        for (const provKey of Object.keys(container)) {
-          const ctor = container[provKey];
-          const name = String(ctor?.name ?? provKey).toLowerCase();
-          if (name.includes('animeowl')) {
-            delete container[provKey];
+          if (type === undefined) {
+            reply.status(400);
+            done(
+              new Error(
+                'Type must not be empty. Available types: ' + providerTypes.toString(),
+              ),
+            );
           }
-        }
-      }
-    }
 
-    // Poison prototype in case something already captured the ctor
-    const Owl = (ANIME as any)?.AnimeOwl;
-    if (Owl?.prototype) {
-      for (const k of Object.getOwnPropertyNames(Owl.prototype)) {
-        if (typeof Owl.prototype[k] === 'function') {
-          Owl.prototype[k] = async () => {
-            throw new Error('AnimeOwl disabled by server config');
-          };
-        }
-      }
-    }
-  } catch (_) {
-    // ignore
-  }
-})();
+          if (!providerTypes.includes(type)) {
+            reply.status(400);
+            done(new Error('Type must be either: ' + providerTypes.toString()));
+          }
+
+          done(undefined);
+        },
+      },
+      async (request: ProvidersRequest, reply: FastifyReply) => {
+        const { type } = request.query;
+        const providers = Object.values(PROVIDERS_LIST[type]).sort((one, two) =>
+          one.name.localeCompare(two.name),
+        );
+        reply.status(200).send(providers.map((element) => element.toString));
+      },
+    );
+  };
+}
