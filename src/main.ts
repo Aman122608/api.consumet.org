@@ -5,11 +5,11 @@ import FastifyCors from '@fastify/cors';
 import fs from 'fs';
 
 import books from './routes/books';
-import anime from './routes/education';
+import anime from './routes/anime';
 import manga from './routes/textbooks';
 import comics from './routes/comics';
 import lightnovels from './routes/light-novels';
-import movies from './routes/bryantvids';
+import movies from './routes/movies';
 import meta from './routes/meta';
 import news from './routes/news';
 import chalk from 'chalk';
@@ -132,11 +132,11 @@ export const tmdbApi = process.env.TMDB_KEY && process.env.TMDB_KEY;
     );
 
   await fastify.register(books, { prefix: '/books' });
-  await fastify.register(anime, { prefix: '/anime' });
-  await fastify.register(manga, { prefix: '/manga' });
+  await fastify.register(anime, { prefix: '/education' });
+  await fastify.register(manga, { prefix: '/bryantbooks' });
   //await fastify.register(comics, { prefix: '/comics' });
   await fastify.register(lightnovels, { prefix: '/light-novels' });
-  await fastify.register(movies, { prefix: '/movies' });
+  await fastify.register(movies, { prefix: '/bryantvids' });
   await fastify.register(meta, { prefix: '/meta' });
   await fastify.register(news, { prefix: '/news' });
 
