@@ -6,7 +6,7 @@ import fs from 'fs';
 
 import books from './routes/books';
 import anime from './routes/anime';
-import manga from './routes/textbooks';
+import manga from './routes/manga';
 import comics from './routes/comics';
 import lightnovels from './routes/light-novels';
 import movies from './routes/movies';
